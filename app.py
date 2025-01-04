@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 def main():
-    st.title("Battery Material Electrolyte Optimization")
+    st.title("Battery Electrolyte Optimization")
     
     # Sidebar for navigation
     page = st.sidebar.selectbox(
