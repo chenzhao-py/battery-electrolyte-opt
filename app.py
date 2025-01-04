@@ -1,9 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler
-import plotly.express as px
-import optuna
+from utils.doe_utils import generate_doe_plan, plot_doe_distribution
+from utils.analysis_utils import create_correlation_plot
 
 st.set_page_config(
     page_title="Battery Electrolyte Optimizer",
@@ -14,9 +13,10 @@ st.set_page_config(
 def main():
     st.title("Battery Electrolyte Optimization")
     
-    # Sidebar for navigation
-    page = st.sidebar.selectbox(
-        "Select a Page",
+    # Sidebar navigation with radio buttons
+    st.sidebar.title("Navigation")
+    page = st.sidebar.radio(
+        "",
         ["Home", "DOE Planning", "Experiment Input", "Analysis & Optimization"]
     )
     
@@ -26,7 +26,7 @@ def main():
         show_doe_planning()
     elif page == "Experiment Input":
         show_experiment_input()
-    elif page == "Analysis & Optimization":
+    else:
         show_analysis()
 
 def show_home():
@@ -50,7 +50,12 @@ def show_doe_planning():
     
     # Input for factors
     st.subheader("Define Electrolyte Components")
-    num_components = st.number_input("Number of components", min_value=2, max_value=10, value=3)
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        num_components = st.number_input("Number of components", min_value=2, max_value=10, value=3)
+    with col2:
+        n_experiments = st.number_input("Number of experiments", min_value=5, max_value=100, value=10)
     
     components = []
     ranges = []
@@ -70,11 +75,13 @@ def show_doe_planning():
     
     if st.button("Generate DOE Plan"):
         if len(components) >= 2:
-            # Simple Latin Hypercube Sampling
-            n_experiments = 10
             doe_plan = generate_doe_plan(components, ranges, n_experiments)
             st.write("Generated DOE Plan:")
             st.dataframe(doe_plan)
+            
+            # Plot the DOE distribution
+            fig = plot_doe_distribution(doe_plan, components)
+            st.plotly_chart(fig, use_container_width=True)
             
             # Download button for DOE plan
             csv = doe_plan.to_csv(index=False)
@@ -84,24 +91,6 @@ def show_doe_planning():
                 file_name="doe_plan.csv",
                 mime="text/csv",
             )
-
-def generate_doe_plan(components, ranges, n_experiments):
-    # Simple Latin Hypercube Sampling implementation
-    n_vars = len(components)
-    doe = np.zeros((n_experiments, n_vars))
-    
-    for i in range(n_vars):
-        min_val, max_val = ranges[i]
-        segment_size = (max_val - min_val) / n_experiments
-        points = np.arange(n_experiments) * segment_size + min_val + segment_size/2
-        np.random.shuffle(points)
-        doe[:, i] = points
-    
-    # Normalize to ensure sum = 100%
-    row_sums = doe.sum(axis=1)
-    doe = doe / row_sums[:, np.newaxis] * 100
-    
-    return pd.DataFrame(doe, columns=components)
 
 def show_experiment_input():
     st.header("Experiment Results Input")
@@ -137,12 +126,7 @@ def show_analysis():
     
     # Display correlation analysis
     st.subheader("Correlation Analysis")
-    numeric_cols = results.select_dtypes(include=[np.number]).columns
-    corr_matrix = results[numeric_cols].corr()
-    fig = px.imshow(corr_matrix,
-                    labels=dict(color="Correlation"),
-                    x=numeric_cols,
-                    y=numeric_cols)
+    fig = create_correlation_plot(results)
     st.plotly_chart(fig)
     
     # Optimization

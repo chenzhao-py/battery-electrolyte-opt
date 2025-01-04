@@ -1,9 +1,31 @@
-import plotly.express as px
-import plotly.graph_objects as go
 import numpy as np
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+
+def generate_doe_plan(components, ranges, n_experiments):
+    """Generate a DOE plan using Latin Hypercube Sampling."""
+    n_vars = len(components)
+    doe = np.zeros((n_experiments, n_vars))
+    
+    for i in range(n_vars):
+        min_val, max_val = ranges[i]
+        segment_size = (max_val - min_val) / n_experiments
+        points = np.arange(n_experiments) * segment_size + min_val + segment_size/2
+        np.random.shuffle(points)
+        doe[:, i] = points
+    
+    # Normalize to ensure sum = 100%
+    row_sums = doe.sum(axis=1)
+    doe = doe / row_sums[:, np.newaxis] * 100
+    
+    # Round to 2 decimal places
+    doe = np.round(doe, 2)
+    
+    return pd.DataFrame(doe, columns=components)
 
 def plot_doe_distribution(doe_data, components):
+    """Plot DOE distribution based on number of components."""
     n_components = len(components)
     
     if n_components == 3:
@@ -14,6 +36,7 @@ def plot_doe_distribution(doe_data, components):
         return plot_parallel_coordinates(doe_data, components)
 
 def plot_ternary(doe_data, components):
+    """Create a ternary plot for 3 components."""
     fig = go.Figure(data=[
         go.Scatterternary(
             a=doe_data[components[0]],
@@ -40,7 +63,7 @@ def plot_ternary(doe_data, components):
     return fig
 
 def plot_quaternary(doe_data, components):
-    # Create a parallel coordinates plot for 4 components
+    """Create a parallel coordinates plot for 4 components."""
     fig = px.parallel_coordinates(
         doe_data,
         dimensions=components,
@@ -53,6 +76,7 @@ def plot_quaternary(doe_data, components):
     return fig
 
 def plot_parallel_coordinates(doe_data, components):
+    """Create a parallel coordinates plot for any number of components."""
     fig = px.parallel_coordinates(
         doe_data,
         dimensions=components,
